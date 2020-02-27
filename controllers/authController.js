@@ -72,8 +72,10 @@ module.exports = {
                 // === GET NEWEST USERDATA
                 sql = `SELECT
                 u.id, u.name, u.username, r.role, u.suspend, u.verified,
+                s.storeid, s.storename, s.storelink, s.phone, s.email, s.photo, s.address, s.city, s.province
                 FROM users u 
                 LEFT JOIN roles r ON u.roleid = r.id 
+                LEFT JOIN stores s ON u.id = s.userid 
                 WHERE u.id=${user[0].id}`;
                 mysqldb.query(sql, (err, resLogin) => {
                   if (err) res.status(500).send(err);
@@ -83,7 +85,7 @@ module.exports = {
                   return res.status(200).send({
                     token,
                     status: LOGIN_SUCCESS,
-                    result: { id, name, username, email, role }
+                    result: resLogin[0]
                   });
                 });
               });
