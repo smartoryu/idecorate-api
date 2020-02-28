@@ -11,12 +11,11 @@ module.exports = {
      * ================================================== GET PRODUCTS
      * if storeid present as params, get all products from the same store
      */
-    if (storeid) {
+    if (storeid > 0) {
       let sql = `SELECT id as productid, name, price, type, about FROM products WHERE storeid = ${storeid}`;
       mysqldb.query(sql, (err, resProduct) => {
         if (err) res.status(500).send(err);
 
-        // console.log("product", resProduct);
         return res.status(200).send({ result: resProduct });
         //
       });
@@ -41,6 +40,7 @@ module.exports = {
   },
   postProduct: (req, res) => {
     const Path = "/products/images";
+    const { storeid } = req.params;
 
     // upload the inserted images to the path folder
     const upload = uploader(Path, "PRODUCT").fields([{ name: "image" }]);
@@ -67,6 +67,7 @@ module.exports = {
       data.price = parseInt(data.price);
       // added upload time to data product
       data.uploadtime = moment().format("YYYY-MM-DD HH:mm:ss");
+      data.storeid = storeid;
 
       try {
         // insert data product to database
@@ -85,8 +86,14 @@ module.exports = {
           mysqldb.query(sql, [arrImages], (err, resImage) => {
             if (err) res.status(500).json({ message: "Upload images failed!", error: err.message });
 
-            // if INSERT success, send redirect
-            res.status(200).send({ redirect: true });
+            // if INSERT success, get all of the product with the same storeid
+            let sql = `SELECT id as productid, name, price, stock, type, about FROM products WHERE storeid = ${storeid}`;
+            mysqldb.query(sql, (err, resProducts) => {
+              if (err) res.status(500).send(err);
+
+              // send fetched data and redirect to frontend
+              res.status(200).send({ result: resProducts, redirect: true });
+            });
           });
         });
       } catch (err) {
@@ -94,6 +101,35 @@ module.exports = {
         console.log(err);
         return res.status(500).json({ message: "There's an error on the server. Please contact the administrator." });
       }
+    });
+  },
+  putProduct: (req, res) => {
+    //
+  },
+  deleteProduct: (req, res) => {
+    const { productid, storeid } = req.params;
+
+    // GET THE IMAGE PATH FROM DATABASE WITH STORED PRODUCTID
+    let sql = `SELECT image FROM product_images WHERE productid = ${productid}`;
+    mysqldb.query(sql, (err, resImages) => {
+      if (err) res.status(500).send(err);
+
+      // IF THERE'S ANY IMAGE(S), UNLINK/DELETE THE FOLDER+FILE WITH THE EXACT PATH
+      resImages[0] && resImages.forEach(({ image }) => fs.unlinkSync(`./public${image}`));
+
+      // AND THEN, DELETE THE PRODUCT. IT WOULD DELETE THE PRODUCT'S DATA & IMAGES
+      let sql = `DELETE FROM products WHERE id = ${productid}`;
+      mysqldb.query(sql, (err, resDelete) => {
+        if (err) res.status(500).send(err);
+
+        // LAST, SELECT ALL THE REMAINING PRODUCT WITH STORED STOREID
+        let sql = `SELECT id as productid, name, price, type, about FROM products WHERE storeid = ${storeid}`;
+        mysqldb.query(sql, (err, resProducts) => {
+          if (err) res.status(500).send(err);
+
+          return res.status(200).send({ result: resProducts });
+        });
+      });
     });
   }
 };
