@@ -16,6 +16,7 @@ module.exports = {
       mysqldb.query(sql, (err, resProduct) => {
         if (err) res.status(500).send(err);
 
+        console.log(resProduct[0]);
         return res.status(200).send({ result: resProduct });
         //
       });
@@ -67,14 +68,18 @@ module.exports = {
       data.price = parseInt(data.price);
       // added upload time to data product
       data.uploadtime = moment().format("YYYY-MM-DD HH:mm:ss");
-      data.storeid = storeid;
+      data.storeid = parseInt(storeid);
 
+      console.log(data);
       try {
         // insert data product to database
         let sql = "INSERT INTO products SET ?";
         mysqldb.query(sql, data, (err, resProduct) => {
-          if (err) res.status(500).json({ message: "Upload data products failed!", error: err.message });
-
+          if (err) {
+            return res.status(500).json({ message: "Upload data products failed!", error: err.message });
+          }
+          // console.log(storeid);
+          // console.log(resProduct);
           // merge images' upload path with the last inserted ID Product in new array
           let arrImages = [];
           imagePath.forEach((val, idx) => {
