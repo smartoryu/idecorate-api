@@ -1,11 +1,12 @@
 const router = require("express").Router();
 const { productController } = require("../controllers");
+const { auth } = require("../helpers/jwt-auth");
 
-router.get("/get_products/:storeid", productController.getProducts);
-router.get("/get_images/:productid", productController.getImages);
+router.get("/get_products/:storeid", auth, productController.getProducts);
+router.get("/get_images/:productid", auth, productController.getImages);
 
-router.post("/add/:storeid", productController.postProduct);
+router.post("/add/:storeid", auth, productController.postProduct);
 
-router.delete("/delete/:storeid/:productid", productController.deleteProduct);
+router.delete("/delete/:storeid/:productid", auth, productController.deleteProduct);
 
 module.exports = router;

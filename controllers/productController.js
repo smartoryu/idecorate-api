@@ -16,7 +16,6 @@ module.exports = {
       mysqldb.query(sql, (err, resProduct) => {
         if (err) res.status(500).send(err);
 
-        console.log(resProduct[0]);
         return res.status(200).send({ result: resProduct });
         //
       });
@@ -34,7 +33,7 @@ module.exports = {
       mysqldb.query(sql, (err, resImages) => {
         if (err) res.status(500).send(err);
 
-        // console.log("images", resImages);
+        console.log("images", resImages);
         resImages && res.status(200).send({ result: resImages });
       });
     }
@@ -132,7 +131,7 @@ module.exports = {
         mysqldb.query(sql, (err, resProducts) => {
           if (err) res.status(500).send(err);
 
-          return res.status(200).send({ result: resProducts });
+          return res.status(200).send({ status: "success", result: resProducts });
         });
       });
     });

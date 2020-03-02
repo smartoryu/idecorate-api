@@ -9,4 +9,5 @@ module.exports = payload => {
    */
   let privateKEY = fs.readFileSync("./private.key", "utf8");
   return jwt.sign(payload, privateKEY, { expiresIn: "6h", algorithm: "RS256" });
+  // return jwt.sign(payload, "mamamia", { expiresIn: "6h" });
 };
