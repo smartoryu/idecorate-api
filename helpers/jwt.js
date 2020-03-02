@@ -8,5 +8,5 @@ module.exports = payload => {
    *   but, make sure it's the same as your publicKEY in jwt-auth.js
    */
   let privateKEY = fs.readFileSync("./private.key", "utf8");
-  return jwt.sign(payload, privateKEY, { expiresIn: "12h" });
+  return jwt.sign(payload, privateKEY, { expiresIn: "6h", algorithm: "RS256" });
 };

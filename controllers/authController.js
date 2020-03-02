@@ -4,7 +4,7 @@ const { mysqldb } = require("../database");
 const encrypt = require("../helpers/encrypt");
 const createJWTToken = require("../helpers/jwt");
 const transporter = require("./../helpers/mailer");
-const { LOGIN_SUCCESS, REG_SUCCESS, WRONG_USER, WRONG_PASS, WRONG_FORM } = require("../helpers/types");
+const { LOGIN_SUCCESS, REG_SUCCESS, SUSPENDED, WRONG_USER, WRONG_PASS, WRONG_FORM } = require("../helpers/types");
 
 module.exports = {
   hashpassword: (req, res) => {
@@ -26,52 +26,42 @@ module.exports = {
     });
   },
   login: (req, res) => {
-    let { id } = req.params;
     let { username, password } = req.query;
 
     if (username || password) {
       let sql = `SELECT id FROM users WHERE username='${username}'`;
       mysqldb.query(sql, (err, uname) => {
-        if (err) res.status(500).send(err);
-        console.log("username", username);
+        if (err) return res.status(500).send(err);
 
         // === IF USERNAME NOT REGISTERED
-        if (!uname[0]) {
-          return res.status(200).send({ status: WRONG_USER, message: "Username not found!" });
-        }
+        if (!uname[0]) return res.status(200).send({ status: WRONG_USER, message: "Username not found!" });
 
-        sql = `SELECT id FROM users WHERE username='${username}' AND suspend='true'`;
+        let sql = `SELECT id FROM users WHERE username='${username}' AND suspend='true'`;
         mysqldb.query(sql, (err, suspend) => {
-          if (err) res.status(500).send(err);
-          // console.log("suspend", suspend);
+          if (err) return res.status(500).send(err);
 
           // === IF USERNAME SUSPENDED
-          if (suspend[0]) {
-            return res.status(200).send({ status: "SUSPENDED", message: "Your account is suspended!" });
-          }
+          if (suspend[0]) return res.status(200).send({ status: SUSPENDED, message: "Your account is suspended!" });
 
           password = encrypt(password);
-          sql = `SELECT u.*, r.role FROM users u LEFT JOIN roles r ON u.roleid = r.id WHERE username='${username}' AND password='${password}'`;
+          let sql = `SELECT id FROM users WHERE username='${username}' AND password='${password}'`;
           mysqldb.query(sql, (err, user) => {
-            if (err) res.status(500).send(err);
-
-            // console.log(user);
-
+            if (err) return res.status(500).send(err);
+            // console.log(password);
             // === IF PASSWORD WRONG
-            if (user[0] === undefined) {
+            if (!user[0]) {
               return res.status(200).send({ status: WRONG_PASS, message: "Password incorrect!" });
-
               // === ALL SEEMS GOOD!
-            } else {
               // === UPDATE LASTLOGIN
+            } else {
               let lastlogin = moment().format("YYYY-MM-DD HH:mm:ss");
               sql = `UPDATE users SET ? WHERE id=${user[0].id}`;
-              mysqldb.query(sql, { lastlogin }, (err, lastlogin) => {
-                if (err) res.status(500).send(err);
+              mysqldb.query(sql, { lastlogin }, (err, resLastlogin) => {
+                if (err) return res.status(500).send(err);
 
                 // === GET NEWEST USERDATA
-                sql = `SELECT
-                u.id, u.name, u.username, r.role, u.suspend, u.verified,
+                let sql = `SELECT
+                u.id, u.name, u.username, r.id as roleid, r.role, u.suspend, u.verified,
                 s.storeid, s.storename, s.storelink, s.phone, s.email, s.photo, s.address, s.city, s.province
                 FROM users u 
                 LEFT JOIN roles r ON u.roleid = r.id 
@@ -80,36 +70,55 @@ module.exports = {
                 mysqldb.query(sql, (err, resLogin) => {
                   if (err) res.status(500).send(err);
 
-                  const token = createJWTToken({ id: resLogin[0].id, role: resLogin[0].roleid });
-                  let { id, name, username, email, role } = resLogin[0];
-                  return res.status(200).send({
-                    token,
-                    status: LOGIN_SUCCESS,
-                    result: resLogin[0]
+                  const token = createJWTToken({
+                    userid: resLogin[0].id,
+                    roleid: resLogin[0].roleid,
+                    storeid: resLogin[0].storeid
                   });
+
+                  return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
                 });
               });
             }
           });
         });
       });
-    } else if (id) {
-      let sql = `SELECT u.*, r.role FROM users u LEFT JOIN roles r ON u.roleid = r.id WHERE u.id = ${id}`;
-      mysqldb.query(sql, (err, login) => {
-        if (err) res.status(500).send(err);
 
-        // === KEEP SESSION LOGIN
-        const token = createJWTToken({ id: login[0].id, role: login[0].roleid });
-        let { id, name, username, email, role } = login[0];
-        return res.status(200).send({
-          token,
-          status: LOGIN_SUCCESS,
-          result: { id, name, username, email, role }
-        });
-      });
+      // END OF LOGIN CONTROLLER
     } else {
       return res.status(200).send({ status: WRONG_FORM, message: "All input must be filled!" });
     }
+  },
+  keeplogin: (req, res) => {
+    let { userid } = req.user;
+
+    let lastlogin = moment().format("YYYY-MM-DD HH:mm:ss");
+    let sql = `UPDATE users SET ? WHERE id=${userid}`;
+    mysqldb.query(sql, { lastlogin }, (err, resLastlogin) => {
+      if (err) return res.status(500).send(err);
+
+      let sql = `SELECT
+        u.id, u.name, u.username, r.role, u.suspend, u.verified,
+        s.storeid, s.storename, s.storelink, s.phone, s.email, s.photo, s.address, s.city, s.province
+        FROM users u 
+        LEFT JOIN roles r ON u.roleid = r.id 
+        LEFT JOIN stores s ON u.id = s.userid 
+        WHERE u.id=${userid}`;
+      mysqldb.query(sql, (err, keepLogin) => {
+        if (err) return res.status(500).send(err);
+
+        // === KEEP SESSION LOGIN
+        const token = createJWTToken({
+          userid: keepLogin[0].id,
+          roleid: keepLogin[0].roleid,
+          storeid: keepLogin[0].store
+        });
+
+        return res.status(200).send({ token, status: LOGIN_SUCCESS, result: keepLogin[0] });
+      });
+    });
+
+    // END OF KEEP-LOGIN CONTROLLER
   },
   register: (req, res) => {
     let { name, username, email, password, password2 } = req.body;
