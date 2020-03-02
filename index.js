@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const bearerToken = require("express-bearer-token");
+require("dotenv").config();
 const PORT = process.env.PORT || 2400;
 
 // =============== Middleware =============== //
