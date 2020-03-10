@@ -5,14 +5,14 @@ const { uploader } = require("../helpers/uploader");
 
 module.exports = {
   getProducts: (req, res) => {
-    const { storeid } = req.params;
+    const { storeid } = req.user;
 
     /**
      * ================================================== GET PRODUCTS
      * if storeid present as params, get all products from the same store
      */
     if (storeid > 0) {
-      let sql = `SELECT id as productid, name, price, type, about FROM products WHERE storeid = ${storeid}`;
+      let sql = `SELECT id as productid, name, price, stock, type, about FROM products WHERE storeid = ${storeid}`;
       mysqldb.query(sql, (err, resProduct) => {
         if (err) res.status(500).send(err);
 
@@ -33,14 +33,13 @@ module.exports = {
       mysqldb.query(sql, (err, resImages) => {
         if (err) res.status(500).send(err);
 
-        console.log("images", resImages);
         resImages && res.status(200).send({ result: resImages });
       });
     }
   },
   postProduct: (req, res) => {
     const Path = "/products/images";
-    const { storeid } = req.params;
+    const { storeid } = req.user;
 
     // upload the inserted images to the path folder
     const upload = uploader(Path, "PRODUCT").fields([{ name: "image" }]);
@@ -111,7 +110,8 @@ module.exports = {
     //
   },
   deleteProduct: (req, res) => {
-    const { productid, storeid } = req.params;
+    const { productid } = req.params;
+    const { storeid } = req.user;
 
     // GET THE IMAGE PATH FROM DATABASE WITH STORED PRODUCTID
     let sql = `SELECT image FROM product_images WHERE productid = ${productid}`;
