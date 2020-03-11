@@ -68,7 +68,8 @@ module.exports = {
       data.uploadtime = moment().format("YYYY-MM-DD HH:mm:ss");
       data.storeid = parseInt(storeid);
 
-      console.log(data);
+      //// console.log(data);
+
       try {
         // insert data product to database
         let sql = "INSERT INTO products SET ?";
@@ -76,8 +77,6 @@ module.exports = {
           if (err) {
             return res.status(500).json({ message: "Upload data products failed!", error: err.message });
           }
-          // console.log(storeid);
-          // console.log(resProduct);
           // merge images' upload path with the last inserted ID Product in new array
           let arrImages = [];
           imagePath.forEach((val, idx) => {
@@ -108,6 +107,28 @@ module.exports = {
   },
   putProduct: (req, res) => {
     //
+  },
+  deleteProductImage: (req, res) => {
+    const { imageid } = req.params;
+
+    let sql = `SELECT productid, image FROM product_images WHERE id = ${imageid}`;
+    mysqldb.query(sql, (err, resImage) => {
+      if (err) res.status(500).send(err);
+
+      if (resImage[0]) fs.unlinkSync(`./public${resImage[0].image}`);
+
+      let sql = `DELETE FROM product_images WHERE id = ${imageid}`;
+      mysqldb.query(sql, (err, resDelete) => {
+        if (err) res.status(500).send(err);
+
+        let sql = `SELECT id as imageid, image FROM product_images WHERE productid = ${resImage[0].productid}`;
+        mysqldb.query(sql, (err, resImages) => {
+          if (err) res.status(500).send(err);
+
+          return res.status(200).send({ result: resImages });
+        });
+      });
+    });
   },
   deleteProduct: (req, res) => {
     const { productid } = req.params;

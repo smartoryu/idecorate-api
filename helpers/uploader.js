@@ -13,7 +13,7 @@ module.exports = {
          * kemudian callback null alias tidak jadi bikin dir
          */
         if (fs.existsSync(dir)) {
-          console.log(dir, " already exist");
+          // console.log(dir, " already exist");
           callback(null, dir);
         } else {
           /**
