@@ -1,7 +1,8 @@
 const router = require("express").Router();
 const { partnerController } = require("../controllers");
+const { auth } = require("../helpers/jwt-auth");
 
-router.get("/", partnerController.getStore);
+router.get("/", auth, partnerController.getStore);
 router.put("/edit/:storeid", partnerController.updateStore);
 
 module.exports = router;

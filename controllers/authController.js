@@ -4,7 +4,16 @@ const { mysqldb } = require("../database");
 const encrypt = require("../helpers/encrypt");
 const createJWTToken = require("../helpers/jwt");
 const transporter = require("./../helpers/mailer");
-const { LOGIN_SUCCESS, REG_SUCCESS, SUSPENDED, WRONG_USER, WRONG_PASS, WRONG_FORM } = require("../helpers/types");
+const {
+  LOGIN_SUCCESS,
+  REG_SUCCESS,
+  SUSPENDED,
+  GOOD_USER,
+  WRONG_USER,
+  WRONG_PASS,
+  WRONG_FORM,
+  UNVERIFIED
+} = require("../helpers/types");
 
 module.exports = {
   hashpassword: (req, res) => {
@@ -18,10 +27,11 @@ module.exports = {
     mysqldb.query(sql, (err, uname) => {
       if (err) res.status(500).send(err);
 
-      if (uname[0]) {
-        return res.status(200).send({ status: "WRONG_USER", message: "Username not available" });
+      if (uname.length) {
+        console.log("err");
+        return res.status(200).send({ status: WRONG_USER, message: "Username not available" });
       } else {
-        return res.status(200).send({ status: "GOOD_USER" });
+        return res.status(200).send({ status: GOOD_USER });
       }
     });
   },
@@ -47,7 +57,7 @@ module.exports = {
           let sql = `SELECT id FROM users WHERE username='${username}' AND password='${password}'`;
           mysqldb.query(sql, (err, user) => {
             if (err) return res.status(500).send(err);
-            // console.log(password);
+
             // === IF PASSWORD WRONG
             if (!user[0]) {
               return res.status(200).send({ status: WRONG_PASS, message: "Password incorrect!" });
@@ -59,24 +69,33 @@ module.exports = {
               mysqldb.query(sql, { lastlogin }, (err, resLastlogin) => {
                 if (err) return res.status(500).send(err);
 
-                // === GET NEWEST USERDATA
-                let sql = `SELECT
-                u.id, u.name, u.username, r.id as roleid, r.role, u.suspend, u.verified,
-                s.storeid, s.storename, s.storelink, s.phone, s.email, s.photo, s.address, s.city, s.province
-                FROM users u 
-                LEFT JOIN roles r ON u.roleid = r.id 
-                LEFT JOIN stores s ON u.id = s.userid 
-                WHERE u.id=${user[0].id}`;
-                mysqldb.query(sql, (err, resLogin) => {
-                  if (err) res.status(500).send(err);
+                let sql = `SELECT verified FROM users WHERE id=${user[0].id}`;
+                mysqldb.query(sql, (err, resVerify) => {
+                  if (err) return res.status(500).send(err);
 
-                  const token = createJWTToken({
-                    userid: resLogin[0].id,
-                    roleid: resLogin[0].roleid,
-                    storeid: resLogin[0].storeid
-                  });
+                  if (resVerify[0].verified !== "true") {
+                    console.log("unverif");
+                    return res.status(200).send({ status: UNVERIFIED });
+                  } else {
+                    // === GET NEWEST USERDATA
+                    let sql = `SELECT id, name, username, email, role, suspend, verified
+                    FROM users WHERE id=${user[0].id}`;
+                    mysqldb.query(sql, (err, resLogin) => {
+                      if (err) res.status(500).send(err);
 
-                  return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
+                      let sql = `SELECT storeid FROM stores WHERE userid=${user[0].id}`;
+                      mysqldb.query(sql, (err, resStore) => {
+                        if (err) res.status(500).send(err);
+
+                        let tokenItem = { userid: resLogin[0].id, role: resLogin[0].role };
+                        if (resStore[0]) {
+                          tokenItem.storeid = resStore[0].storeid;
+                        }
+                        const token = createJWTToken(tokenItem);
+                        return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
+                      });
+                    });
+                  }
                 });
               });
             }
@@ -97,22 +116,13 @@ module.exports = {
     mysqldb.query(sql, { lastlogin }, (err, resLastlogin) => {
       if (err) return res.status(500).send(err);
 
-      let sql = `SELECT
-        u.id, u.name, u.username, r.role, u.suspend, u.verified,
-        s.storeid, s.storename, s.storelink, s.phone, s.email, s.photo, s.address, s.city, s.province
-        FROM users u 
-        LEFT JOIN roles r ON u.roleid = r.id 
-        LEFT JOIN stores s ON u.id = s.userid 
-        WHERE u.id=${userid}`;
+      let sql = `SELECT id, name, username, email, role, suspend, verified
+      FROM users WHERE id=${userid}`;
       mysqldb.query(sql, (err, keepLogin) => {
         if (err) return res.status(500).send(err);
 
         // === KEEP SESSION LOGIN
-        const token = createJWTToken({
-          userid: keepLogin[0].id,
-          roleid: keepLogin[0].roleid,
-          storeid: keepLogin[0].store
-        });
+        const token = createJWTToken({ userid: keepLogin[0].id, role: keepLogin[0].role });
 
         return res.status(200).send({ token, status: LOGIN_SUCCESS, result: keepLogin[0] });
       });
@@ -123,7 +133,7 @@ module.exports = {
   register: (req, res) => {
     let { name, username, email, password, password2 } = req.body;
 
-    console.log(req.body);
+    // console.log(req.body);
 
     let sql = `SELECT * FROM users WHERE username='${username}'`;
     mysqldb.query(sql, (err, resUsername) => {
@@ -135,7 +145,8 @@ module.exports = {
       }
 
       // === IF USERNAME ALREADY REGISTERED
-      else if (resUsername[0]) {
+      else if (resUsername.length) {
+        console.log("resUsername[0]");
         return res.status(200).send({ status: WRONG_USER, message: "Username not available" });
       }
 
@@ -175,5 +186,8 @@ module.exports = {
         });
       }
     });
+  },
+  verifyAccount: (req, res) => {
+    const { token } = req.params;
   }
 };

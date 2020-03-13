@@ -5,7 +5,7 @@ const moment = require("moment");
 
 module.exports = {
   getStore: (req, res) => {
-    const { userid } = req.query;
+    const { userid } = req.user;
 
     if (userid > 0) {
       try {

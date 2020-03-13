@@ -1,8 +1,8 @@
 const crypto = require("crypto");
 
-module.exports = password => {
+module.exports = text => {
   return crypto
     .createHmac("sha256", "mamamialezatos")
-    .update(password)
+    .update(text)
     .digest("hex");
 };
