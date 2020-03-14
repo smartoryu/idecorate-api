@@ -28,13 +28,13 @@ module.exports = {
       filename: (req, file, callback) => {
         let originalname = file.originalname;
         let ext = originalname.split(".");
-        let filename = prefix + Date.now() + "." + ext[ext.length - 1];
+        let filename = `${prefix}-${Date.now()}.${ext[ext.length - 1]}`;
         callback(null, filename);
       }
     });
 
     const imageFilter = (req, file, callback) => {
-      const ext = /\.(jpg|jpeg|png|gif|pdf|doc|docx|xls|xlsx)$/;
+      const ext = /\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx)$/;
       if (!file.originalname.match(ext)) {
         return callback(new Error("Only selected file types are allowed!"), false);
       }
