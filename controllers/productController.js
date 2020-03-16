@@ -3,6 +3,12 @@ const moment = require("moment");
 const { mysqldb } = require("../database");
 const { uploader } = require("../helpers/uploader");
 
+const sqlGetAllProduct = storeid => {
+  return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
+    FROM products p LEFT JOIN product_types t
+    ON p.typeid = t.id WHERE storeid = ${storeid}`;
+};
+
 module.exports = {
   getProducts: (req, res) => {
     const { storeid } = req.user;
@@ -11,11 +17,7 @@ module.exports = {
      * ================================================== GET PRODUCTS
      * if storeid present as params, get all products from the same store
      */
-    // let sql = `SELECT id as productid, name, price, stock, type, about
-    // FROM products WHERE storeid = ${storeid}`;
-    let sql = `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about
-    FROM products p LEFT JOIN product_types t
-    ON p.typeid = t.id WHERE storeid = ${storeid}`;
+    let sql = sqlGetAllProduct(storeid);
     mysqldb.query(sql, (err, resProduct) => {
       if (err) res.status(500).send(err);
 
@@ -46,13 +48,13 @@ module.exports = {
       });
     }
   },
-  postImages: (req, res) => {
+  putProduct: (req, res) => {
     const { storeid } = req.user;
     const { productid } = req.params;
-    const Path = `/products/${storeid}/${productid}/images`;
+    const Path = `/products/${storeid}/images`;
 
     // upload the inserted images to the path folder
-    const upload = uploader(Path, `PRODUCT${productid}-${storeid}`).fields([{ name: "image" }]);
+    const upload = uploader(Path, `PRODUCT-${storeid}`).fields([{ name: "image" }]);
     upload(req, res, err => {
       if (err) res.status(500).json({ message: "Upload picture failed!", error: err.message });
 
@@ -69,6 +71,11 @@ module.exports = {
       let arrImages = [];
       imagePath.forEach(image => arrImages.push([productid, image]));
 
+      // access data sent from front-end
+      const data = JSON.parse(req.body.data);
+      // added update time to data product
+      data.updatetime = moment().format("YYYY-MM-DD HH:mm:ss");
+
       // insert images' path to database
       if (arrImages[0]) {
         let sql = `INSERT INTO product_images (productid, image) VALUES ?`;
@@ -76,69 +83,44 @@ module.exports = {
           if (err) {
             try {
               arrImages.forEach(({ image }) => fs.unlinkSync("./public" + image));
-            } catch (error) {
+            } catch {
               console.log("file not found");
             }
-            res.status(500).json({ message: "Upload images failed!", error: err.message });
+            return res.status(500).json({ message: "Upload images failed!", error: err.message });
           }
-
-          const data = JSON.parse(req.body.data);
-          let sql = `UPDATE products SET ? WHERE id = ${productid}`;
-          mysqldb.query(sql, data, (err, resUpdateData) => {
-            if (err) res.status(500).send(err);
-
-            // if INSERT success, get all of the product with the same storeid
-            let sql = `SELECT id as imageid, productid, image FROM product_images WHERE productid = ${productid}`;
-            mysqldb.query(sql, (err, resImages) => {
-              if (err) res.status(500).send(err);
-
-              let sql = `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about
-              FROM products p LEFT JOIN product_types t
-              ON p.typeid = t.id WHERE storeid = ${storeid}`;
-              mysqldb.query(sql, (err, resProducts) => {
-                if (err) res.status(500).send(err);
-
-                console.log("newImg", resImages);
-
-                // send fetched data and redirect to frontend
-                return res.status(200).send({ images: resImages, products: resProducts });
-              });
-            });
-          });
         });
-      } else {
-        const data = JSON.parse(req.body.data);
+      }
+
+      // if INSERT success, get all of the product with the same storeid
+      let sql = `SELECT id as imageid, productid, image FROM product_images WHERE productid = ${productid}`;
+      mysqldb.query(sql, (err, resImages) => {
+        if (err) res.status(500).send(err);
+
+        // added first uploaded image as default cover_image
+        data.cover_image = resImages[0].image;
+
         let sql = `UPDATE products SET ? WHERE id = ${productid}`;
         mysqldb.query(sql, data, (err, resUpdateData) => {
           if (err) res.status(500).send(err);
 
-          // if INSERT success, get all of the product with the same storeid
-          let sql = `SELECT id as imageid, productid, image FROM product_images WHERE productid = ${productid}`;
-          mysqldb.query(sql, (err, resImages) => {
+          // GET ALL DATA
+          let sql = sqlGetAllProduct(storeid);
+          mysqldb.query(sql, (err, resProducts) => {
             if (err) res.status(500).send(err);
 
-            console.log("oldImg", resImages);
-
-            let sql = `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about
-            FROM products p LEFT JOIN product_types t
-            ON p.typeid = t.id WHERE storeid = ${storeid}`;
-            mysqldb.query(sql, (err, resProducts) => {
-              if (err) res.status(500).send(err);
-
-              // send fetched data and redirect to frontend
-              return res.status(200).send({ products: resProducts });
-            });
+            // send fetched data and redirect to frontend
+            return res.status(200).send({ images: resImages, products: resProducts });
           });
         });
-      }
+      });
     });
   },
   postProduct: (req, res) => {
-    const Path = "/products/images";
     const { storeid } = req.user;
+    const Path = `/products/${storeid}/images`;
 
     // upload the inserted images to the path folder
-    const upload = uploader(Path, "PRODUCT").fields([{ name: "image" }]);
+    const upload = uploader(Path, `PRODUCT-${storeid}`).fields([{ name: "image" }]);
     upload(req, res, err => {
       if (err) res.status(500).json({ message: "Upload picture failed!", error: err.message });
 
@@ -149,34 +131,36 @@ module.exports = {
 
       // save the imagepath and original filename to array
       if (image) {
-        image.forEach((val, idx) => {
-          imagePath.push(Path + "/" + val.filename);
-          imageFilename.push(val.originalname);
+        image.forEach(image => {
+          imagePath.push(Path + "/" + image.filename);
+          imageFilename.push(image.originalname);
         });
       }
 
       // access data sent from front-end
       const data = JSON.parse(req.body.data);
 
+      // add storeid to the product
+      data.storeid = parseInt(storeid);
       // convert price value to integer
       data.price = parseInt(data.price);
-      // added upload time to data product
-      data.uploadtime = moment().format("YYYY-MM-DD HH:mm:ss");
-      data.storeid = parseInt(storeid);
-
-      //// console.log(data);
+      // added issued time to data product
+      data.iat = moment().format("YYYY-MM-DD HH:mm:ss");
+      // added update time to data product
+      data.updatetime = moment().format("YYYY-MM-DD HH:mm:ss");
+      // added first uploaded image as default cover_image
+      data.cover_image = imagePath[0];
 
       try {
         // insert data product to database
         let sql = "INSERT INTO products SET ?";
         mysqldb.query(sql, data, (err, resProduct) => {
-          if (err) {
-            return res.status(500).json({ message: "Upload data products failed!", error: err.message });
-          }
+          if (err) res.status(500).json({ message: "Upload data products failed!", error: err.message });
+
           // merge images' upload path with the last inserted ID Product in new array
           let arrImages = [];
-          imagePath.forEach((val, idx) => {
-            arrImages.push([resProduct.insertId, val]);
+          imagePath.forEach(image => {
+            arrImages.push([resProduct.insertId, image]);
           });
 
           // insert images' path to database
@@ -185,7 +169,7 @@ module.exports = {
             if (err) res.status(500).json({ message: "Upload images failed!", error: err.message });
 
             // if INSERT success, get all of the product with the same storeid
-            let sql = `SELECT id as productid, name, price, stock, type, about FROM products WHERE storeid = ${storeid}`;
+            let sql = sqlGetAllProduct(storeid);
             mysqldb.query(sql, (err, resProducts) => {
               if (err) res.status(500).send(err);
 
@@ -195,28 +179,10 @@ module.exports = {
           });
         });
       } catch (err) {
-        image && imagePath.forEach((val, id) => fs.unlinkSync("./public" + val));
+        image && imagePath.forEach(image => fs.unlinkSync("./public" + image));
         console.log(err);
         return res.status(500).json({ message: "There's an error on the server. Please contact the administrator." });
       }
-    });
-  },
-  putProduct: (req, res) => {
-    const { storeid } = req.user;
-    const { productid, name, price, stock, type, about } = req.body.editProduct;
-    let newEdit = { name, price, stock, type, about };
-
-    let sql = `UPDATE products SET ? WHERE id = ${productid}`;
-    mysqldb.query(sql, newEdit, (err, resUpdate) => {
-      if (err) res.status(500).send(err);
-
-      let sql = `SELECT id as productid, name, price, stock, type, about
-      FROM products WHERE storeid = ${storeid}`;
-      mysqldb.query(sql, (err, resProduct) => {
-        if (err) res.status(500).send(err);
-
-        return res.status(200).send({ result: resProduct });
-      });
     });
   },
   deleteProductImage: (req, res) => {
@@ -238,14 +204,19 @@ module.exports = {
       let sql = `DELETE FROM product_images WHERE id = ${imageid}`;
       mysqldb.query(sql, (err, resDelete) => {
         if (err) res.status(500).send(err);
-        console.log("deletedImgProd", productid);
+        console.log(resImage[0].image, " deleted, productid", productid);
 
         let sql = `SELECT id as imageid, productid, image FROM product_images WHERE productid = ${productid}`;
         mysqldb.query(sql, (err, resImages) => {
           if (err) res.status(500).send(err);
-          console.log(resImages);
 
-          return res.status(200).send({ result: resImages });
+          let data = { cover_image: resImages[0].image };
+          let sql = `UPDATE products SET ? WHERE id = ${productid}`;
+          mysqldb.query(sql, data, (err, resUpdateData) => {
+            if (err) res.status(500).send(err);
+
+            return res.status(200).send({ result: resImages });
+          });
         });
       });
     });
@@ -260,15 +231,21 @@ module.exports = {
       if (err) res.status(500).send(err);
 
       // IF THERE'S ANY IMAGE(S), UNLINK/DELETE THE FOLDER+FILE WITH THE EXACT PATH
-      resImages[0] && resImages.forEach(({ image }) => fs.unlinkSync(`./public${image}`));
+      try {
+        resImages[0] && resImages.forEach(({ image }) => fs.unlinkSync(`./public${image}`));
+      } catch {
+        console.log("file not found!");
+      }
 
       // AND THEN, DELETE THE PRODUCT. IT WOULD DELETE THE PRODUCT'S DATA & IMAGES
       let sql = `DELETE FROM products WHERE id = ${productid}`;
       mysqldb.query(sql, (err, resDelete) => {
         if (err) res.status(500).send(err);
 
+        resImages[0] && resImages.forEach(({ image }) => console.log(image, " deleted"));
+
         // LAST, SELECT ALL THE REMAINING PRODUCT WITH STORED STOREID
-        let sql = `SELECT id as productid, name, price, type, about FROM products WHERE storeid = ${storeid}`;
+        let sql = sqlGetAllProduct(storeid);
         mysqldb.query(sql, (err, resProducts) => {
           if (err) res.status(500).send(err);
 

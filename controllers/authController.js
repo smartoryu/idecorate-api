@@ -78,8 +78,9 @@ module.exports = {
                     return res.status(200).send({ status: UNVERIFIED });
                   } else {
                     // === GET NEWEST USERDATA
-                    let sql = `SELECT id, name, username, email, role, suspend, verified
-                    FROM users WHERE id=${user[0].id}`;
+                    let sql = `SELECT u.id, u.name, u.username, u.email, r.role, u.suspend, u.verified, u.lastlogin
+                    FROM users u LEFT JOIN roles r ON u.roleid = r.id
+                    WHERE u.id = ${user[0].id}`;
                     mysqldb.query(sql, (err, resLogin) => {
                       if (err) res.status(500).send(err);
 
@@ -112,19 +113,28 @@ module.exports = {
     let { userid } = req.user;
 
     let lastlogin = moment().format("YYYY-MM-DD HH:mm:ss");
-    let sql = `UPDATE users SET ? WHERE id=${userid}`;
+    let sql = `UPDATE users SET ? WHERE id = ${userid}`;
     mysqldb.query(sql, { lastlogin }, (err, resLastlogin) => {
       if (err) return res.status(500).send(err);
 
-      let sql = `SELECT id, name, username, email, role, suspend, verified
-      FROM users WHERE id=${userid}`;
+      let sql = `SELECT u.id, u.name, u.username, u.email, r.role, u.suspend, u.verified, u.lastlogin
+      FROM users u LEFT JOIN roles r ON u.roleid = r.id
+      WHERE u.id = ${userid}`;
       mysqldb.query(sql, (err, keepLogin) => {
         if (err) return res.status(500).send(err);
 
         // === KEEP SESSION LOGIN
-        const token = createJWTToken({ userid: keepLogin[0].id, role: keepLogin[0].role });
+        let sql = `SELECT storeid FROM stores WHERE userid=${userid}`;
+        mysqldb.query(sql, (err, resStore) => {
+          if (err) res.status(500).send(err);
 
-        return res.status(200).send({ token, status: LOGIN_SUCCESS, result: keepLogin[0] });
+          let tokenItem = { userid: resLastlogin.id, role: resLastlogin.role };
+          if (resStore[0]) {
+            tokenItem.storeid = resStore[0].storeid;
+          }
+          const token = createJWTToken(tokenItem);
+          return res.status(200).send({ token, status: LOGIN_SUCCESS, result: keepLogin[0] });
+        });
       });
     });
 
@@ -133,18 +143,16 @@ module.exports = {
   register: (req, res) => {
     let { name, username, email, password, password2 } = req.body;
 
-    // console.log(req.body);
-
     let sql = `SELECT * FROM users WHERE username='${username}'`;
     mysqldb.query(sql, (err, resUsername) => {
       if (err) res.status(500).send(err);
 
-      // === ALL INPUT MUST BE FILLED
+      // === ALL INPUT MUST BE FILLED ===
       if (!name || !username || !email || !password || !password2) {
         return res.status(200).send({ status: WRONG_FORM, message: "All input must be filled!" });
       }
 
-      // === IF USERNAME ALREADY REGISTERED
+      // === IF USERNAME ALREADY REGISTERED ===
       else if (resUsername.length) {
         console.log("resUsername[0]");
         return res.status(200).send({ status: WRONG_USER, message: "Username not available" });
@@ -170,17 +178,22 @@ module.exports = {
           if (err) res.status(200).send(err);
           console.log("registered");
 
-          // let verifyLink = "kepo";
-          // let mailOptions = {
-          //   from: "admin <prikenang.tech@gmail.com>",
-          //   to: email,
-          //   subject: "Verify your account!",
-          //   html: `Please verify your account by clicking on this <a href=${verifyLink}>link</a>`
-          // };
-          // transporter.sendMail(mailOptions, (err, resMail) => {
-          //   if (err) res.status(500).send(err);
-          //   return res.status(200).send({ status: "REG_SUCCESS" });
-          // });
+          let sql = `SELECT verified FROM users WHERE id = ${resNewUser.insertId}`;
+          mysqldb.query(sql, (err, verify) => {
+            if (err) res.status(500).send(err);
+
+            let verifyLink = `http://localhost:3000/verification/${verify[0]}`;
+            let mailOptions = {
+              from: "admin <prikenang.tech@gmail.com>",
+              to: email,
+              subject: "Verify iDecorate's Account",
+              html: `Please verify your account by clicking on this <a href=${verifyLink}>link</a>`
+            };
+            transporter.sendMail(mailOptions, (err, resMail) => {
+              if (err) res.status(500).send(err);
+              return res.status(200).send({ status: "REG_SUCCESS" });
+            });
+          });
 
           return res.status(200).send({ status: REG_SUCCESS });
         });

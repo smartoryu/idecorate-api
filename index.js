@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 2400;
 // =============== Middleware =============== //
 app.use(cors());
 app.use(bearerToken());
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // ================= Routes ================ //

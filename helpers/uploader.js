@@ -29,6 +29,7 @@ module.exports = {
         let originalname = file.originalname;
         let ext = originalname.split(".");
         let filename = `${prefix}-${Date.now()}.${ext[ext.length - 1]}`;
+        console.log(ext[0], "uploaded as ", filename);
         callback(null, filename);
       }
     });
