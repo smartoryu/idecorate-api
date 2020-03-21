@@ -6,6 +6,7 @@ router.get("/hashpassword", authController.hashpassword);
 router.get("/check_username", authController.checkUsername);
 
 router.post("/register", authController.register);
+router.post("/verify", authController.verifyAccount);
 
 router.get("/login", authController.login);
 router.get("/keeplogin", auth, authController.keeplogin);

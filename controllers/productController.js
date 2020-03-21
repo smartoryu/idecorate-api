@@ -6,7 +6,7 @@ const { uploader } = require("../helpers/uploader");
 const sqlGetAllProduct = storeid => {
   return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
     FROM products p LEFT JOIN product_types t
-    ON p.typeid = t.id WHERE storeid = ${storeid}`;
+    ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
 };
 
 module.exports = {
@@ -21,7 +21,11 @@ module.exports = {
     mysqldb.query(sql, (err, resProduct) => {
       if (err) res.status(500).send(err);
 
-      return res.status(200).send({ result: resProduct });
+      try {
+        return res.status(200).send({ result: resProduct });
+      } catch (err) {
+        // console.log(err);
+      }
     });
   },
   getTypes: (req, res) => {
