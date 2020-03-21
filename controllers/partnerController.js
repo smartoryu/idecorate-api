@@ -50,11 +50,13 @@ module.exports = {
     });
   },
   getStore: (req, res) => {
-    const { userid } = req.user;
-    console.log("54", userid);
+    const { userid, storeid } = req.user;
+    console.log("54", storeid);
+
+    const idStore = req.params.storeid || storeid;
     if (userid > 0) {
       try {
-        let sql = `SELECT * FROM stores WHERE userid = ${userid}`;
+        let sql = `SELECT * FROM stores WHERE storeid = ${idStore}`;
         mysqldb.query(sql, (err, resStore) => {
           if (err) res.status(500).send(err);
 

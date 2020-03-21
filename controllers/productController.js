@@ -12,7 +12,7 @@ const sqlGetAllProduct = storeid => {
 module.exports = {
   getProducts: (req, res) => {
     const { storeid } = req.user;
-
+    // console.log("getPro", req.user);
     /**
      * ================================================== GET PRODUCTS
      * if storeid present as params, get all products from the same store
@@ -21,14 +21,11 @@ module.exports = {
     mysqldb.query(sql, (err, resProduct) => {
       if (err) res.status(500).send(err);
 
-      try {
-        return res.status(200).send({ result: resProduct });
-      } catch (err) {
-        // console.log(err);
-      }
+      return res.status(200).send({ result: resProduct });
     });
   },
   getTypes: (req, res) => {
+    // console.log("getType", req.user);
     let sql = `SELECT * FROM product_types`;
     mysqldb.query(sql, (err, result) => {
       if (err) res.status(500).send(err);

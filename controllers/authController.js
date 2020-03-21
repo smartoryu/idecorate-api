@@ -88,10 +88,8 @@ module.exports = {
                     mysqldb.query(sql, (err, resLogin) => {
                       if (err) res.status(500).send(err);
 
-                      let tokenItem = { userid: resLogin[0].id, role: resLogin[0].role };
-
                       if (resLogin[0].role !== "partner") {
-                        token = createJWTToken(tokenItem);
+                        token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
                         return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
 
                         // END OF ADMIN AND MEMBER SECTION
@@ -101,14 +99,20 @@ module.exports = {
                           if (err) res.status(500).send(err);
 
                           if (!resStore.length) {
-                            token = createJWTToken(tokenItem);
-                            return res.status(200).send({ status: CREATE_NEW_STORE, token, result: resLogin[0] });
+                            token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
+                            console.log("login103", token);
+                            return res.status(200).send({ token, status: "LOGIN_NEW_PARTNER", result: resLogin[0] });
                             // END OF NEW PARTNER SECTION
                           }
 
-                          tokenItem.storeid = resStore[0].storeid;
-                          token = createJWTToken(tokenItem);
-                          return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0], store: resStore[0] });
+                          token = createJWTToken({
+                            userid: resLogin[0].id,
+                            role: resLogin[0].role,
+                            storeid: resStore[0].storeid
+                          });
+                          return res
+                            .status(200)
+                            .send({ token, status: "LOGIN_PARTNER", result: resLogin[0], store: resStore[0] });
                           // END OF PARTNER WITH STORE SECTION
                         });
                       }
@@ -130,40 +134,31 @@ module.exports = {
     let { userid } = req.user;
     let token;
 
-    let lastlogin = moment().format("YYYY-MM-DD HH:mm:ss");
-    let sql = `UPDATE users SET ? WHERE id = ${userid}`;
-    mysqldb.query(sql, { lastlogin }, (err, resLastlogin) => {
+    let sql = getDataUser(userid);
+    mysqldb.query(sql, (err, resLogin) => {
       if (err) return res.status(500).send(err);
 
-      let sql = getDataUser(userid);
-      mysqldb.query(sql, (err, keepLogin) => {
-        if (err) return res.status(500).send(err);
+      if (resLogin[0].role !== "partner") {
+        token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
+        return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
 
-        let tokenItem = { userid: keepLogin[0].id, role: keepLogin[0].role };
+        // END OF ADMIN AND MEMBER SECTION
+      } else if (resLogin[0].role === "partner") {
+        let sql = `SELECT * FROM stores WHERE userid=${userid}`;
+        mysqldb.query(sql, (err, resStore) => {
+          if (err) res.status(500).send(err);
 
-        if (keepLogin[0].role !== "partner") {
-          token = createJWTToken(tokenItem);
-          return res.status(200).send({ token, status: LOGIN_SUCCESS, result: keepLogin[0] });
+          if (!resStore.length) {
+            token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
+            return res.status(200).send({ token, status: CREATE_NEW_STORE, result: resLogin[0] });
+            // END OF NEW PARTNER SECTION
+          }
 
-          // END OF ADMIN AND MEMBER SECTION
-        } else if (keepLogin[0].role === "partner") {
-          let sql = `SELECT * FROM stores WHERE userid=${userid}`;
-          mysqldb.query(sql, (err, resStore) => {
-            if (err) res.status(500).send(err);
-
-            if (!resStore.length) {
-              token = createJWTToken(tokenItem);
-              return res.status(200).send({ status: CREATE_NEW_STORE, token, result: keepLogin[0] });
-              // END OF NEW PARTNER SECTION
-            }
-
-            tokenItem.storeid = resStore[0].storeid;
-            token = createJWTToken(tokenItem);
-            return res.status(200).send({ token, status: LOGIN_SUCCESS, result: keepLogin[0], store: resStore[0] });
-            // END OF PARTNER WITH STORE SECTION
-          });
-        }
-      });
+          token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role, storeid: resStore[0].storeid });
+          return res.status(200).send({ token, status: "LOGIN_PARTNER", result: resLogin[0], store: resStore[0] });
+          // END OF PARTNER WITH STORE SECTION
+        });
+      }
     });
 
     // END OF KEEP-LOGIN CONTROLLER
