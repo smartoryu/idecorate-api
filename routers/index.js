@@ -1,9 +1,11 @@
 const authRouters = require("./authRouters");
 const productRouters = require("./productRouters");
 const partnerRouters = require("./partnerRouters");
+const homepageRouters = require("./homepageRouters");
 
 module.exports = {
   authRouters,
   productRouters,
-  partnerRouters
+  partnerRouters,
+  homepageRouters
 };
