@@ -3,5 +3,7 @@ const { homepageController } = require("../controllers");
 
 router.get("/slider", homepageController.getImageSlider);
 router.get("/slideshow", homepageController.getImageSlideshow);
+router.get("/p/get_types", homepageController.getTypes);
+router.get("/p/get_details/:productid", homepageController.getDetails);
 
 module.exports = router;
