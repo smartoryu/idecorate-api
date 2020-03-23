@@ -14,13 +14,14 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // ================= Routes ================ //
-const { authRouters, productRouters, partnerRouters, homepageRouters } = require("./routers");
+const { authRouters, productRouters, partnerRouters, homepageRouters, transactionRouters } = require("./routers");
 
 // =========== Routes Middleware =========== //
 app.use("/auth", authRouters);
 app.use("/product", productRouters);
 app.use("/partner", partnerRouters);
 app.use("/homepage", homepageRouters);
+app.use("/t", transactionRouters);
 
 app.get("/", (req, res) => res.status(200).send("Welcome to iDecorate API!"));
 app.listen(PORT, () => console.log("running on port " + PORT));

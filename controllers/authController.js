@@ -22,6 +22,18 @@ const getDataUser = userid => {
   WHERE u.id = ${userid}`;
 };
 
+const getCartDetails = userid => {
+  return `SELECT td.transdetailsid, td.userid, p.storeid, td.productid, p.name, p.price, td.qty, p.cover_image AS image, td.position
+FROM transaction_details td LEFT JOIN products p ON td.productid = p.id
+WHERE td.userid = ${userid} AND position = 'cart'`;
+};
+
+const getAllProduct = storeid => {
+  return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
+    FROM products p LEFT JOIN product_types t
+    ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
+};
+
 module.exports = {
   hashpassword: (req, res) => {
     let hashpassword = encrypt(req.query.password);
@@ -51,14 +63,18 @@ module.exports = {
         if (err) return res.status(500).send(err);
 
         // === IF USERNAME NOT REGISTERED
-        if (!uname[0]) return res.status(200).send({ status: WRONG_USER, message: "Username not found!" });
+        if (!uname[0])
+          return res.status(200).send({ status: WRONG_USER, message: "Username not found!" });
 
         let sql = `SELECT id FROM users WHERE username='${username}' AND suspend='true'`;
         mysqldb.query(sql, (err, suspend) => {
           if (err) return res.status(500).send(err);
 
           // === IF USERNAME SUSPENDED
-          if (suspend[0]) return res.status(200).send({ status: SUSPENDED, message: "Your account is suspended!" });
+          if (suspend[0])
+            return res
+              .status(200)
+              .send({ status: SUSPENDED, message: "Your account is suspended!" });
 
           password = encrypt(password);
           let sql = `SELECT id FROM users WHERE username='${username}' AND password='${password}'`;
@@ -69,7 +85,6 @@ module.exports = {
             if (!user[0]) {
               return res.status(200).send({ status: WRONG_PASS, message: "Password incorrect!" });
               // === ALL SEEMS GOOD!
-              // === UPDATE LASTLOGIN
             } else {
               let lastlogin = moment().format("YYYY-MM-DD HH:mm:ss");
               sql = `UPDATE users SET ? WHERE id=${user[0].id}`;
@@ -88,33 +103,81 @@ module.exports = {
                     mysqldb.query(sql, (err, resLogin) => {
                       if (err) res.status(500).send(err);
 
-                      if (resLogin[0].role !== "partner") {
-                        token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
-                        return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
+                      console.log(resLogin[0].role);
 
-                        // END OF ADMIN AND MEMBER SECTION
-                      } else if (resLogin[0].role === "partner") {
-                        let sql = `SELECT * FROM stores WHERE userid=${user[0].id}`;
-                        mysqldb.query(sql, (err, resStore) => {
-                          if (err) res.status(500).send(err);
-
-                          if (!resStore.length) {
-                            token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
-                            console.log("login103", token);
-                            return res.status(200).send({ token, status: "LOGIN_NEW_PARTNER", result: resLogin[0] });
-                            // END OF NEW PARTNER SECTION
-                          }
-
+                      switch (resLogin[0].role) {
+                        case "admin":
                           token = createJWTToken({
                             userid: resLogin[0].id,
-                            role: resLogin[0].role,
-                            storeid: resStore[0].storeid
+                            role: resLogin[0].role
                           });
-                          return res
-                            .status(200)
-                            .send({ token, status: "LOGIN_PARTNER", result: resLogin[0], store: resStore[0] });
-                          // END OF PARTNER WITH STORE SECTION
-                        });
+
+                          return res.status(200).send({
+                            token,
+                            status: LOGIN_SUCCESS,
+                            result: resLogin[0]
+                          });
+
+                        // END OF ADMIN SECTION
+                        case "member":
+                          sql = getCartDetails(user[0].id);
+                          return mysqldb.query(sql, (err, resCart) => {
+                            if (err) return res.status(500).send(err);
+
+                            token = createJWTToken({
+                              userid: resLogin[0].id,
+                              role: resLogin[0].role
+                            });
+
+                            return res.status(200).send({
+                              token,
+                              status: LOGIN_SUCCESS,
+                              result: resLogin[0],
+                              cart: resCart
+                            });
+                          });
+
+                        // END OF MEMBER SECTION
+                        case "partner":
+                          sql = `SELECT * FROM stores WHERE userid=${user[0].id}`;
+                          return mysqldb.query(sql, (err, resStore) => {
+                            if (err) res.status(500).send(err);
+
+                            if (!resStore.length) {
+                              token = createJWTToken({
+                                userid: resLogin[0].id,
+                                role: resLogin[0].role
+                              });
+
+                              return res.status(200).send({
+                                token,
+                                status: "LOGIN_NEW_PARTNER",
+                                result: resLogin[0]
+                              });
+
+                              // END OF NEW PARTNER SECTION
+                            } else {
+                              token = createJWTToken({
+                                userid: resLogin[0].id,
+                                role: resLogin[0].role,
+                                storeid: resStore[0].storeid
+                              });
+
+                              return res.status(200).send({
+                                token,
+                                status: "LOGIN_PARTNER",
+                                result: resLogin[0],
+                                store: resStore[0]
+                              });
+
+                              // END OF PARTNER WITH STORE SECTION
+                            }
+                          });
+
+                        // END OF PARTNER SECTION
+                        default:
+                          console.log("unknown error");
+                          break;
                       }
                     });
                   }
@@ -138,26 +201,77 @@ module.exports = {
     mysqldb.query(sql, (err, resLogin) => {
       if (err) return res.status(500).send(err);
 
-      if (resLogin[0].role !== "partner") {
-        token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
-        return res.status(200).send({ token, status: LOGIN_SUCCESS, result: resLogin[0] });
+      switch (resLogin[0].role) {
+        case "admin":
+          token = createJWTToken({
+            userid: resLogin[0].id,
+            role: resLogin[0].role
+          });
 
-        // END OF ADMIN AND MEMBER SECTION
-      } else if (resLogin[0].role === "partner") {
-        let sql = `SELECT * FROM stores WHERE userid=${userid}`;
-        mysqldb.query(sql, (err, resStore) => {
-          if (err) res.status(500).send(err);
+          return res.status(200).send({
+            token,
+            status: LOGIN_SUCCESS,
+            result: resLogin[0]
+          });
 
-          if (!resStore.length) {
-            token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role });
-            return res.status(200).send({ token, status: CREATE_NEW_STORE, result: resLogin[0] });
-            // END OF NEW PARTNER SECTION
-          }
+        // END OF ADMIN SECTION
+        case "member":
+          sql = getCartDetails(userid);
+          return mysqldb.query(sql, (err, resCart) => {
+            if (err) return res.status(500).send(err);
 
-          token = createJWTToken({ userid: resLogin[0].id, role: resLogin[0].role, storeid: resStore[0].storeid });
-          return res.status(200).send({ token, status: "LOGIN_PARTNER", result: resLogin[0], store: resStore[0] });
-          // END OF PARTNER WITH STORE SECTION
-        });
+            token = createJWTToken({
+              userid: resLogin[0].id,
+              role: resLogin[0].role
+            });
+
+            return res.status(200).send({
+              token,
+              status: LOGIN_SUCCESS,
+              result: resLogin[0],
+              cart: resCart
+            });
+          });
+
+        // END OF MEMBER SECTION
+        case "partner":
+          sql = `SELECT * FROM stores WHERE userid=${userid}`;
+          return mysqldb.query(sql, (err, resStore) => {
+            if (err) res.status(500).send(err);
+
+            if (!resStore.length) {
+              token = createJWTToken({
+                userid: resLogin[0].id,
+                role: resLogin[0].role
+              });
+
+              return res.status(200).send({
+                token,
+                status: CREATE_NEW_STORE,
+                result: resLogin[0]
+              });
+              // END OF NEW PARTNER SECTION
+            } else {
+              token = createJWTToken({
+                userid: resLogin[0].id,
+                role: resLogin[0].role,
+                storeid: resStore[0].storeid
+              });
+
+              return res.status(200).send({
+                token,
+                status: "LOGIN_PARTNER",
+                result: resLogin[0],
+                store: resStore[0]
+              });
+
+              // END OF PARTNER WITH STORE SECTION
+            }
+          });
+
+        default:
+          console.log("unknown error");
+          break;
       }
     });
 
@@ -233,7 +347,9 @@ module.exports = {
       if (err) return res.status(500).send(err);
 
       if (!resUser.length) {
-        return res.status(200).send({ status: "VERIFY_WRONG", message: "Your confirmation link already expired." });
+        return res
+          .status(200)
+          .send({ status: "VERIFY_WRONG", message: "Your confirmation link already expired." });
       } else if (token !== resUser[0].verified) {
         return res.status(200).send({ status: "VERIFY_FAILED" });
       }
@@ -252,9 +368,12 @@ module.exports = {
 
           let tokenItem = { userid: resLogin[0].id, role: resLogin[0].role };
           const token = createJWTToken(tokenItem);
-          return res
-            .status(200)
-            .send({ token, status: LOGIN_SUCCESS, result: resLogin[0], message: "Your account is verified." });
+          return res.status(200).send({
+            token,
+            status: LOGIN_SUCCESS,
+            result: resLogin[0],
+            message: "Your account is verified."
+          });
         });
       });
     });

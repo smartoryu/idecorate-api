@@ -30,7 +30,7 @@ module.exports = {
   getDetails: (req, res) => {
     const { productid } = req.params;
 
-    let sql = `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
+    let sql = `SELECT p.id AS productid, p.storeid, p.name, (p.stock - p.sold_qty) AS stock, t.type, p.price, p.about, p.cover_image
     FROM products p LEFT JOIN product_types t
     ON p.typeid = t.id WHERE p.id = ${productid}`;
     mysqldb.query(sql, (err, resDetails) => {
