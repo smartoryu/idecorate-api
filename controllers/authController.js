@@ -17,8 +17,10 @@ const {
 } = require("../helpers/types");
 
 const getDataUser = userid => {
-  return `SELECT u.id, u.name, u.username, u.email, r.role, u.suspend, u.verified, u.lastlogin
-  FROM users u LEFT JOIN roles r ON u.roleid = r.id
+  return `SELECT u.id, u.name, u.username, u.email, r.role, a.label, a.receiver, a.phone, a.city, a.zip_code, a.address, u.suspend, u.verified, u.lastlogin
+  FROM users u
+  LEFT JOIN roles r ON u.roleid = r.id
+  LEFT JOIN user_address a ON u.id = a.userid
   WHERE u.id = ${userid}`;
 };
 
@@ -63,18 +65,14 @@ module.exports = {
         if (err) return res.status(500).send(err);
 
         // === IF USERNAME NOT REGISTERED
-        if (!uname[0])
-          return res.status(200).send({ status: WRONG_USER, message: "Username not found!" });
+        if (!uname[0]) return res.status(200).send({ status: WRONG_USER, message: "Username not found!" });
 
         let sql = `SELECT id FROM users WHERE username='${username}' AND suspend='true'`;
         mysqldb.query(sql, (err, suspend) => {
           if (err) return res.status(500).send(err);
 
           // === IF USERNAME SUSPENDED
-          if (suspend[0])
-            return res
-              .status(200)
-              .send({ status: SUSPENDED, message: "Your account is suspended!" });
+          if (suspend[0]) return res.status(200).send({ status: SUSPENDED, message: "Your account is suspended!" });
 
           password = encrypt(password);
           let sql = `SELECT id FROM users WHERE username='${username}' AND password='${password}'`;
@@ -347,9 +345,7 @@ module.exports = {
       if (err) return res.status(500).send(err);
 
       if (!resUser.length) {
-        return res
-          .status(200)
-          .send({ status: "VERIFY_WRONG", message: "Your confirmation link already expired." });
+        return res.status(200).send({ status: "VERIFY_WRONG", message: "Your confirmation link already expired." });
       } else if (token !== resUser[0].verified) {
         return res.status(200).send({ status: "VERIFY_FAILED" });
       }
