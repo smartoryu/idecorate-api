@@ -2,12 +2,7 @@ const fs = require("fs");
 const moment = require("moment");
 const { mysqldb } = require("../database");
 const { uploader } = require("../helpers/uploader");
-
-const sqlGetAllProduct = storeid => {
-  return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
-    FROM products p LEFT JOIN product_types t
-    ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
-};
+const { sqlGetAllProduct } = require("../helpers/query");
 
 module.exports = {
   getProducts: (req, res) => {

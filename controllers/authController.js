@@ -15,26 +15,27 @@ const {
   UNVERIFIED,
   CREATE_NEW_STORE
 } = require("../helpers/types");
+const { getDataUser, getAllProduct, getCartDetails } = require("../helpers/query");
 
-const getDataUser = userid => {
-  return `SELECT u.id, u.name, u.username, u.email, r.role, a.label, a.receiver, a.phone, a.city, a.zip_code, a.address, u.suspend, u.verified, u.lastlogin
-  FROM users u
-  LEFT JOIN roles r ON u.roleid = r.id
-  LEFT JOIN user_address a ON u.id = a.userid
-  WHERE u.id = ${userid}`;
-};
+// const getDataUser = userid => {
+//   return `SELECT u.id, u.name, u.username, u.email, r.role, a.label, a.receiver, a.phone, a.city, a.zip_code, a.address, u.suspend, u.verified, u.lastlogin
+//   FROM users u
+//   LEFT JOIN roles r ON u.roleid = r.id
+//   LEFT JOIN user_address a ON u.id = a.userid
+//   WHERE u.id = ${userid}`;
+// };
 
-const getCartDetails = userid => {
-  return `SELECT td.transdetailsid, td.userid, p.storeid, td.productid, p.name, p.price, td.qty, p.cover_image AS image, td.position
-FROM transaction_details td LEFT JOIN products p ON td.productid = p.id
-WHERE td.userid = ${userid} AND position = 'cart'`;
-};
+// const getCartDetails = userid => {
+//   return `SELECT td.transdetailsid, td.userid, p.storeid, td.productid, p.name, p.price, td.qty, p.cover_image AS image, td.position
+// FROM transaction_details td LEFT JOIN products p ON td.productid = p.id
+// WHERE td.userid = ${userid} AND position = 'cart'`;
+// };
 
-const getAllProduct = storeid => {
-  return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
-    FROM products p LEFT JOIN product_types t
-    ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
-};
+// const getAllProduct = storeid => {
+//   return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
+//     FROM products p LEFT JOIN product_types t
+//     ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
+// };
 
 module.exports = {
   hashpassword: (req, res) => {
@@ -100,8 +101,6 @@ module.exports = {
                     let sql = getDataUser(user[0].id);
                     mysqldb.query(sql, (err, resLogin) => {
                       if (err) res.status(500).send(err);
-
-                      console.log(resLogin[0].role);
 
                       switch (resLogin[0].role) {
                         case "admin":
