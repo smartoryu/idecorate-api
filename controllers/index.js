@@ -4,6 +4,7 @@ const partnerController = require("./partnerController");
 const homepageController = require("./homepageController.");
 const cartController = require("./cartController");
 const orderController = require("./orderController");
+const modController = require("./modController");
 
 module.exports = {
   authController,
@@ -11,5 +12,6 @@ module.exports = {
   partnerController,
   homepageController,
   cartController,
-  orderController
+  orderController,
+  modController
 };

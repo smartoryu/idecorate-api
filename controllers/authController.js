@@ -15,27 +15,14 @@ const {
   UNVERIFIED,
   CREATE_NEW_STORE
 } = require("../helpers/types");
-const { getDataUser, getAllProduct, getCartDetails } = require("../helpers/query");
-
-// const getDataUser = userid => {
-//   return `SELECT u.id, u.name, u.username, u.email, r.role, a.label, a.receiver, a.phone, a.city, a.zip_code, a.address, u.suspend, u.verified, u.lastlogin
-//   FROM users u
-//   LEFT JOIN roles r ON u.roleid = r.id
-//   LEFT JOIN user_address a ON u.id = a.userid
-//   WHERE u.id = ${userid}`;
-// };
-
-// const getCartDetails = userid => {
-//   return `SELECT td.transdetailsid, td.userid, p.storeid, td.productid, p.name, p.price, td.qty, p.cover_image AS image, td.position
-// FROM transaction_details td LEFT JOIN products p ON td.productid = p.id
-// WHERE td.userid = ${userid} AND position = 'cart'`;
-// };
-
-// const getAllProduct = storeid => {
-//   return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
-//     FROM products p LEFT JOIN product_types t
-//     ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
-// };
+const {
+  getDataUser,
+  getAllProduct,
+  getCartDetails,
+  getAllOrderList,
+  getAllOrderItems,
+  getAllConfirmedOrderList
+} = require("../helpers/query");
 
 module.exports = {
   hashpassword: (req, res) => {
@@ -101,6 +88,7 @@ module.exports = {
                     let sql = getDataUser(user[0].id);
                     mysqldb.query(sql, (err, resLogin) => {
                       if (err) res.status(500).send(err);
+                      console.log(resLogin[0].role);
 
                       switch (resLogin[0].role) {
                         case "admin":
@@ -114,8 +102,39 @@ module.exports = {
                             status: LOGIN_SUCCESS,
                             result: resLogin[0]
                           });
-
                         // END OF ADMIN SECTION
+
+                        case "moderator":
+                          sql = getAllOrderList();
+                          return mysqldb.query(sql, (err, resOrder) => {
+                            if (err) return res.status(500).send(err);
+
+                            sql = getAllOrderItems();
+                            mysqldb.query(sql, (err, resOrderItems) => {
+                              if (err) return res.status(500).send(err);
+
+                              sql = getAllConfirmedOrderList();
+                              mysqldb.query(sql, (err, resConfirmedOrders) => {
+                                if (err) return res.status(500).send(err);
+
+                                token = createJWTToken({
+                                  userid: resLogin[0].id,
+                                  role: resLogin[0].role
+                                });
+
+                                return res.status(200).send({
+                                  token,
+                                  status: "LOGIN_MODERATOR",
+                                  result: resLogin[0],
+                                  orders: resOrder,
+                                  orderItems: resOrderItems,
+                                  confirmedOrders: resConfirmedOrders
+                                });
+                              });
+                            });
+                          });
+                        // END OF MODERATOR SECTION
+
                         case "member":
                           sql = getCartDetails(user[0].id);
                           return mysqldb.query(sql, (err, resCart) => {
@@ -133,8 +152,8 @@ module.exports = {
                               cart: resCart
                             });
                           });
-
                         // END OF MEMBER SECTION
+
                         case "partner":
                           sql = `SELECT * FROM stores WHERE userid=${user[0].id}`;
                           return mysqldb.query(sql, (err, resStore) => {
@@ -173,7 +192,7 @@ module.exports = {
 
                         // END OF PARTNER SECTION
                         default:
-                          console.log("unknown error");
+                          console.log("170 - unknown error");
                           break;
                       }
                     });
@@ -210,8 +229,39 @@ module.exports = {
             status: LOGIN_SUCCESS,
             result: resLogin[0]
           });
-
         // END OF ADMIN SECTION
+
+        case "moderator":
+          sql = getAllOrderList();
+          return mysqldb.query(sql, (err, resOrder) => {
+            if (err) return res.status(500).send(err);
+
+            sql = getAllOrderItems();
+            mysqldb.query(sql, (err, resOrderItems) => {
+              if (err) return res.status(500).send(err);
+
+              sql = getAllConfirmedOrderList();
+              mysqldb.query(sql, (err, resConfirmedOrders) => {
+                if (err) return res.status(500).send(err);
+
+                token = createJWTToken({
+                  userid: resLogin[0].id,
+                  role: resLogin[0].role
+                });
+
+                return res.status(200).send({
+                  token,
+                  status: "LOGIN_MODERATOR",
+                  result: resLogin[0],
+                  orders: resOrder,
+                  orderItems: resOrderItems,
+                  confirmedOrders: resConfirmedOrders
+                });
+              });
+            });
+          });
+        // END OF MODERATOR SECTION
+
         case "member":
           sql = getCartDetails(userid);
           return mysqldb.query(sql, (err, resCart) => {
@@ -229,8 +279,8 @@ module.exports = {
               cart: resCart
             });
           });
-
         // END OF MEMBER SECTION
+
         case "partner":
           sql = `SELECT * FROM stores WHERE userid=${userid}`;
           return mysqldb.query(sql, (err, resStore) => {
@@ -247,6 +297,7 @@ module.exports = {
                 status: CREATE_NEW_STORE,
                 result: resLogin[0]
               });
+
               // END OF NEW PARTNER SECTION
             } else {
               token = createJWTToken({
@@ -267,7 +318,7 @@ module.exports = {
           });
 
         default:
-          console.log("unknown error");
+          console.log("277 - unknown error");
           break;
       }
     });

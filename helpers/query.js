@@ -45,5 +45,31 @@ module.exports = {
     return `SELECT td.transdetailsid, td.transid, td.userid, p.storeid, td.productid, p.name, p.price, td.qty, p.cover_image AS image, td.position
   FROM transaction_details td LEFT JOIN products p ON td.productid = p.id
   WHERE td.userid = ${userid} AND position = 'Order'`;
+  },
+
+  getAllOrderList: () => {
+    return `SELECT t.id AS transid, t.invoice, t.userid,
+                (SELECT SUM(td.qty * p.price) total
+                    FROM transaction_details td
+                    LEFT JOIN products p ON td.productid = p.id
+                    WHERE position = 'Order' AND td.transid = t.id)
+                AS total_price, t.payment_receipt, t.payment_status, t.order_status
+            FROM transactions t WHERE NOT payment_status = 'Confirmed'`;
+  },
+
+  getAllOrderItems: () => {
+    return `SELECT td.transdetailsid, td.transid, td.userid, p.storeid, td.productid, p.name, p.price, td.qty, p.cover_image AS image, td.position
+  FROM transaction_details td LEFT JOIN products p ON td.productid = p.id
+  WHERE position = 'Order'`;
+  },
+
+  getAllConfirmedOrderList: () => {
+    return `SELECT t.id AS transid, t.invoice, t.userid,
+                (SELECT SUM(td.qty * p.price) total
+                    FROM transaction_details td
+                    LEFT JOIN products p ON td.productid = p.id
+                    WHERE position = 'Order' AND td.transid = t.id)
+                AS total_price, t.payment_receipt, t.payment_status, t.order_status
+            FROM transactions t WHERE payment_status = 'Confirmed'`;
   }
 };

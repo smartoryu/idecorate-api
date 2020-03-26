@@ -14,7 +14,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // ================= Routes ================ //
-const { authRouters, productRouters, partnerRouters, homepageRouters, cartRouters, orderRouters } = require("./routers");
+const {
+  authRouters,
+  productRouters,
+  partnerRouters,
+  homepageRouters,
+  cartRouters,
+  orderRouters,
+  modRouters
+} = require("./routers");
 
 // =========== Routes Middleware =========== //
 app.use("/auth", authRouters);
@@ -23,6 +31,7 @@ app.use("/partner", partnerRouters);
 app.use("/homepage", homepageRouters);
 app.use("/cart", cartRouters);
 app.use("/order", orderRouters);
+app.use("/mod", modRouters);
 
 app.get("/", (req, res) => res.status(200).send("Welcome to iDecorate API!"));
 app.listen(PORT, () => console.log("running on port " + PORT));
