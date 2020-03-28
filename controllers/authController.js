@@ -113,7 +113,7 @@ module.exports = {
                             mysqldb.query(sql, (err, resOrderItems) => {
                               if (err) return res.status(500).send(err);
 
-                              sql = getAllConfirmedOrderList();
+                              sql = getAllConfirmedOrderList(user[0].id);
                               mysqldb.query(sql, (err, resConfirmedOrders) => {
                                 if (err) return res.status(500).send(err);
 
@@ -240,7 +240,7 @@ module.exports = {
             mysqldb.query(sql, (err, resOrderItems) => {
               if (err) return res.status(500).send(err);
 
-              sql = getAllConfirmedOrderList();
+              sql = getAllConfirmedOrderList(userid);
               mysqldb.query(sql, (err, resConfirmedOrders) => {
                 if (err) return res.status(500).send(err);
 

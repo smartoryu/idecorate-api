@@ -32,13 +32,14 @@ module.exports = {
   },
 
   getOrderList: userid => {
-    return `SELECT t.id AS transid, t.invoice, t.userid,
+    return `SELECT t.id AS transid, t.moderator, t.invoice, t.userid,
                 (SELECT SUM(td.qty * p.price) total
                     FROM transaction_details td
                     LEFT JOIN products p ON td.productid = p.id
                     WHERE position = 'Order' AND td.transid = t.id)
-                AS total_price, t.payment_receipt, t.payment_status, t.order_status
-            FROM transactions t WHERE t.userid = ${userid}`;
+                AS total_price, t.payment_receipt, t.payment_status, t.order_status,
+                t.ordered_time, t.paid_time, t.confirmed_time, t.shipped_time, t.received_time
+            FROM transactions t WHERE t.userid = ${userid} ORDER BY ordered_time DESC`;
   },
 
   getOrderItems: userid => {
@@ -48,13 +49,15 @@ module.exports = {
   },
 
   getAllOrderList: () => {
-    return `SELECT t.id AS transid, t.invoice, t.userid,
+    return `SELECT t.id AS transid, t.moderator, t.invoice, t.userid,
                 (SELECT SUM(td.qty * p.price) total
                     FROM transaction_details td
                     LEFT JOIN products p ON td.productid = p.id
                     WHERE position = 'Order' AND td.transid = t.id)
-                AS total_price, t.payment_receipt, t.payment_status, t.order_status
-            FROM transactions t WHERE NOT payment_status = 'Confirmed'`;
+                AS total_price, t.payment_receipt, t.payment_status, t.order_status,
+                t.ordered_time, t.paid_time, t.confirmed_time, t.shipped_time, t.received_time
+            FROM transactions t WHERE payment_status = 'Paid'
+            ORDER BY ordered_time DESC`;
   },
 
   getAllOrderItems: () => {
@@ -63,13 +66,15 @@ module.exports = {
   WHERE position = 'Order'`;
   },
 
-  getAllConfirmedOrderList: () => {
-    return `SELECT t.id AS transid, t.invoice, t.userid,
+  getAllConfirmedOrderList: mod_id => {
+    return `SELECT t.id AS transid, t.moderator, t.invoice, t.userid,
                 (SELECT SUM(td.qty * p.price) total
                     FROM transaction_details td
                     LEFT JOIN products p ON td.productid = p.id
                     WHERE position = 'Order' AND td.transid = t.id)
-                AS total_price, t.payment_receipt, t.payment_status, t.order_status
-            FROM transactions t WHERE payment_status = 'Confirmed'`;
+                AS total_price, t.payment_receipt, t.payment_status, t.order_status,
+                t.ordered_time, t.paid_time, t.confirmed_time, t.shipped_time, t.received_time
+            FROM transactions t WHERE t.moderator = ${mod_id} AND payment_status = 'Confirmed'
+            ORDER BY ordered_time DESC`;
   }
 };
