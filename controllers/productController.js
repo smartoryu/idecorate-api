@@ -2,12 +2,7 @@ const fs = require("fs");
 const moment = require("moment");
 const { mysqldb } = require("../database");
 const { uploader } = require("../helpers/uploader");
-
-const sqlGetAllProduct = storeid => {
-  return `SELECT p.id as productid, p.storeid, p.name, p.stock, t.type, p.price, p.about, p.cover_image
-    FROM products p LEFT JOIN product_types t
-    ON p.typeid = t.id WHERE storeid = ${storeid} ORDER BY p.id DESC`;
-};
+const { getAllProduct } = require("../helpers/query");
 
 module.exports = {
   getProducts: (req, res) => {
@@ -17,7 +12,7 @@ module.exports = {
      * ================================================== GET PRODUCTS
      * if storeid present as params, get all products from the same store
      */
-    let sql = sqlGetAllProduct(storeid);
+    let sql = getAllProduct(storeid);
     mysqldb.query(sql, (err, resProduct) => {
       if (err) res.status(500).send(err);
 
@@ -105,7 +100,7 @@ module.exports = {
           if (err) res.status(500).send(err);
 
           // GET ALL DATA
-          let sql = sqlGetAllProduct(storeid);
+          let sql = getAllProduct(storeid);
           mysqldb.query(sql, (err, resProducts) => {
             if (err) res.status(500).send(err);
 
@@ -170,7 +165,7 @@ module.exports = {
             if (err) res.status(500).json({ message: "Upload images failed!", error: err.message });
 
             // if INSERT success, get all of the product with the same storeid
-            let sql = sqlGetAllProduct(storeid);
+            let sql = getAllProduct(storeid);
             mysqldb.query(sql, (err, resProducts) => {
               if (err) res.status(500).send(err);
 
@@ -246,7 +241,7 @@ module.exports = {
         resImages[0] && resImages.forEach(({ image }) => console.log(image, " deleted"));
 
         // LAST, SELECT ALL THE REMAINING PRODUCT WITH STORED STOREID
-        let sql = sqlGetAllProduct(storeid);
+        let sql = getAllProduct(storeid);
         mysqldb.query(sql, (err, resProducts) => {
           if (err) res.status(500).send(err);
 

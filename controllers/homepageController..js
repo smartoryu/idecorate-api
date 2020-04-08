@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 const { mysqldb } = require("../database");
+const { getRandomProductPerType } = require("../helpers/query");
 
 module.exports = {
   getImageSlideshow: (req, res) => {
@@ -42,6 +43,14 @@ module.exports = {
 
         return res.status(200).send({ result: resDetails[0], images: resImages });
       });
+    });
+  },
+  get5RandomProductPerType: (req, res) => {
+    let sql = getRandomProductPerType();
+    mysqldb.query(sql, (err, result) => {
+      if (err) return res.status(500).send(err);
+      // console.log(result);
+      return res.status(200).send({ result });
     });
   }
 };
