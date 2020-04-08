@@ -76,5 +76,17 @@ module.exports = {
                 t.ordered_time, t.paid_time, t.confirmed_time, t.shipped_time, t.received_time
             FROM transactions t WHERE t.moderator = ${mod_id} AND payment_status = 'Confirmed'
             ORDER BY ordered_time DESC`;
+  },
+
+  getRandomProductPerType: () => {
+    return `SELECT p.id, p.name, p.price, pt.type, p.cover_image image
+            FROM   products p LEFT JOIN product_types pt ON p.typeid = pt.id
+                    INNER JOIN (
+                      SELECT   typeid, GROUP_CONCAT(id ORDER BY rand()) types
+                      FROM     products
+                      GROUP BY typeid) group_types
+                ON p.typeid = group_types.typeid
+                AND FIND_IN_SET(p.id, types) <= 5
+            ORDER BY pt.type`;
   }
 };
