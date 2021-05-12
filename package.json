@@ -18,7 +18,7 @@
     "moment": "^2.24.0",
     "multer": "^1.4.2",
     "mysql": "^2.18.1",
-    "nodemailer": "^6.4.2",
+    "nodemailer": "^6.4.16",
     "redux": "^4.0.5",
     "redux-thunk": "^2.3.0"
   }
